@@ -1,0 +1,420 @@
+<!doctype html><html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Zip</title><meta name="theme-color" content="#f4f6fa"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Zip"><meta name="apple-mobile-web-app-status-bar-style" content="default"><link rel="icon" type="image/svg+xml" href="./icon.svg"><link rel="manifest" href="./manifest.webmanifest"><style>
+:root{color-scheme:light;--ink:#26303a;--bg:#f4f6fa;--grid:#b6c6d4;--orange:#0a85df;--barrier:#15191f;--fill:#e6f4ff;--tile:#f5faff}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+body{background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.app{width:min(100%,640px);margin:0 auto;padding:clamp(12px,2.8vw,28px) 14px 35px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px;padding:0 3px}
+.logo{font-size:25px;font-weight:850;letter-spacing:-1px;line-height:1}
+.settings{display:flex;align-items:center;gap:8px}
+.btn{min-height:44px;border-radius:11px;border:1px solid #ccd6e0;background:#fff;color:#2a3948;font:inherit;font-size:14px;font-weight:700;padding:0 13px;cursor:pointer;transition:background .13s,transform .12s,box-shadow .12s}
+.btn:hover{background:#f3f7fc;box-shadow:0 2px 10px #20384f10}.btn:active{transform:scale(.97)}.btn:disabled{opacity:.42;cursor:default;box-shadow:none}
+.btn-primary{background:#1667b3;border-color:#1667b3;color:#fff;padding:0 18px}.btn-primary:hover{background:#075896}
+.game{background:#fff;padding:clamp(11px,3vw,23px);border-radius:19px;border:1px solid #e3eaf1;box-shadow:0 14px 46px #172d4012}
+.readout{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:0 2px;font-size:14px;font-weight:750;letter-spacing:.1px;color:#607186;font-variant-numeric:tabular-nums}
+.board{position:relative;width:100%;aspect-ratio:1;background:var(--tile);border:2px solid #6a8297;border-radius:13px;overflow:hidden;touch-action:none;user-select:none;outline-offset:4px;cursor:crosshair;box-shadow:0 3px 12px #122f4712}
+.board.loading{opacity:.45;pointer-events:none}
+.cells,.clue-layer,.wall-layer{position:absolute;inset:0;width:100%;height:100%}
+.cells{z-index:1;display:grid}
+.cell{position:relative;min-width:0;min-height:0;background:var(--tile);border-right:1.25px solid var(--grid);border-bottom:1.25px solid var(--grid);transition:background .08s}
+.cell:hover{background:#eaf2f9}.cell.visited{background:var(--fill)}
+.board svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.route-svg{z-index:2}
+.wall-layer{z-index:3;pointer-events:none}
+.wall{position:absolute;background:var(--barrier);border-radius:1px;box-shadow:0 0 0 1px #f8fafb6a}
+.wall.vertical{width:7px;transform:translateX(-50%)}.wall.horizontal{height:7px;transform:translateY(-50%)}
+.clue-layer{display:grid;z-index:4;pointer-events:none}
+.clue-space{min-height:0;min-width:0;display:flex;align-items:center;justify-content:center}
+.clue-bubble{width:62%;max-width:47px;aspect-ratio:1;border-radius:100%;background:#15191f;display:grid;place-items:center;box-shadow:0 2px 5px #15233425;border:2px solid #f6faff;color:#fff;font-size:clamp(13px,2.8vw,20px);font-weight:830;line-height:1;font-variant-numeric:tabular-nums}
+.clue-bubble.current{background:#111827;box-shadow:0 0 0 3px #a1bad5}
+.route-arrow{fill:#fff;stroke:#fff;stroke-width:2;stroke-linejoin:round}
+.cell.invalid{background:#ffe5e6!important}.clue-bubble.invalid{background:#d62248!important;border-color:#fff;box-shadow:0 0 0 4px #ffadb9;animation:shake .3s ease-in-out 2}
+@keyframes shake{0%,100%{transform:translateX(0)}30%{transform:translateX(-2px)}70%{transform:translateX(2px)}}
+.board-alert{position:absolute;top:9px;left:50%;transform:translate(-50%,-7px);z-index:10;opacity:0;max-width:calc(100% - 14px);white-space:nowrap;pointer-events:none;background:#b92448;color:#fff;padding:8px 13px;border-radius:30px;box-shadow:0 4px 12px #4f1d2d35;border:1px solid #fff8;font-size:12px;font-weight:800;transition:all .15s}
+.board-alert.visible{opacity:1;transform:translate(-50%,0)}
+.progress{height:4px;background:#edf0f3;margin:16px 0;border-radius:10px;overflow:hidden}
+.bar{width:0;height:100%;background:#0a85df;transition:width .12s}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.actions .btn{height:45px;font-size:14px}
+.feedback{display:none;margin-top:11px;text-align:center;font-weight:700;font-size:13px;padding:9px 12px;border-radius:9px}
+.feedback.warn{display:block;background:#fff0ea;color:#ad4d29}.feedback.win{display:block;background:#e5f5ec;color:#176e43}
+.win-overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(12,25,38,.66);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.win-overlay.open{display:flex}
+.win-card{width:min(100%,360px);border-radius:24px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.24);padding:32px 24px 25px;text-align:center;animation:win-appear .26s ease-out}
+@keyframes win-appear{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.win-icon{font-size:44px;line-height:1;margin-bottom:14px}
+.win-heading{margin:0;font-size:26px;letter-spacing:-.5px;line-height:1.2;font-weight:850;color:#162b3f}
+.win-time{font-weight:850;font-size:40px;line-height:1.2;font-variant-numeric:tabular-nums;margin:18px 0 24px;color:#0c69b8}
+.win-buttons{display:flex;gap:9px;flex-direction:column}
+.win-buttons .btn{font-size:16px;min-height:50px}
+.win-close{background:#f1f5f9;border-color:#e0e7ef}
+body.modal-open{overflow:hidden}
+button:focus-visible,.board:focus-visible{outline:3px solid #7cb7fd;outline-offset:3px}
+@media(max-width:580px){.app{padding:10px 8px 25px}.game{padding:12px;border-radius:14px}.logo{font-size:23px}.toolbar{margin-bottom:10px}.clue-bubble{width:65%;font-size:clamp(12px,3.6vw,19px)}.actions{gap:7px}.actions .btn{font-size:12px;padding:0 6px}.readout{margin-bottom:10px}.wall.vertical{width:6px}.wall.horizontal{height:6px}}
+</style></head><body><main class="app">
+<header class="toolbar"><div class="logo">Zip</div><div class="settings"><button class="btn btn-primary" id="newBtn">Νέα πίστα</button></div></header>
+<section class="game"><div class="readout"><span id="timer">00:00</span><span id="progressLabel">0 / 36</span></div>
+<div id="board" class="board loading" role="application" tabindex="0" aria-label="Zip: αριθμημένο πλέγμα"><div class="cells" id="cells"></div><svg class="route-svg" id="routeSvg" aria-hidden="true"></svg><div class="wall-layer" id="wallLayer" aria-hidden="true"></div><div class="clue-layer" id="clueLayer" aria-hidden="true"></div><div class="board-alert" id="boardAlert" aria-live="polite"></div></div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="actions"><button class="btn" id="undoBtn" title="Πίσω (Backspace)">↶ Πίσω</button><button class="btn" id="clearBtn">↻ Καθαρισμός</button><button class="btn" id="hintBtn">✦ Βοήθεια</button></div><div class="feedback" id="feedback" aria-live="polite"></div></section></main>
+<div class="win-overlay" id="winOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="winHeading">
+  <div class="win-card">
+    <div class="win-icon" aria-hidden="true">🎉</div>
+    <h2 class="win-heading" id="winHeading">Ολοκληρώθηκε!</h2>
+    <div class="win-time" id="winTime">00:00</div>
+    <div class="win-buttons">
+      <button class="btn btn-primary" id="nextPuzzleBtn">Επόμενη πίστα</button>
+      <button class="btn win-close" id="closeWinBtn">Κλείσιμο</button>
+    </div>
+  </div>
+</div><script>
+'use strict';
+const $ = id => document.getElementById(id);
+const state={puzzle:null,path:[],timerStart:null,elapsed:0,timerHandle:null,dragging:false,busy:false,showSolution:false,won:false};
+let invalidFlashTimer=null;
+const sleep=()=>new Promise(resolve=>setTimeout(resolve,0));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const key=(a,b)=>Math.min(a,b)+','+Math.max(a,b);
+const near=(a,b,n)=>Math.abs(Math.floor(a/n)-Math.floor(b/n))+Math.abs(a%n-b%n)===1;
+function makeAdj(n){const N=n*n,out=Array.from({length:N},()=>[]);for(let r=0;r<n;r++)for(let c=0;c<n;c++){const i=r*n+c;for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){const rr=r+dr,cc=c+dc;if(rr>=0&&rr<n&&cc>=0&&cc<n)out[i].push(rr*n+cc)}}return out}
+function randomHamiltonian(n,adj){const N=n*n;let path=[];for(let r=0;r<n;r++)for(let c=0;c<n;c++)path.push(r*n+(r%2?n-1-c:c));const where=new Int16Array(N);for(let iter=0;iter<N*26;iter++){for(let i=0;i<N;i++)where[path[i]]=i;const isFront=Math.random()<.5;const head=isFront?path[0]:path[N-1],already=isFront?path[1]:path[N-2];const possibilities=adj[head].filter(v=>v!==already);if(!possibilities.length)continue;const j=where[possibilities[Math.floor(Math.random()*possibilities.length)]];if(isFront&&j>1)path=path.slice(0,j).reverse().concat(path.slice(j));else if(!isFront&&j<N-2)path=path.slice(0,j+1).concat(path.slice(j+1).reverse())}return path}
+/* The solution is known. This DFS searches for ANY distinct solution. A proof of uniqueness returns 0.
+   1 = another valid solution; -1 = search budget exceeded (so we conservatively keep that wall). */
+function findAlternative(n,adj,target,clues,walls){
+ const N=n*n,blocked=new Set(walls),nbr=adj.map((a,u)=>a.filter(v=>!blocked.has(key(u,v))));
+ const clueAt=new Int16Array(N);clueAt.fill(-1);clues.forEach((u,i)=>clueAt[u]=i);
+ const seen=new Uint8Array(N),route=new Int16Array(N),visitedMark=new Uint32Array(N);
+ const begin=clues[0],end=clues[clues.length-1];seen[begin]=1;route[0]=begin;
+ let nodes=0,mark=0;const cutoff=performance.now()+290;
+ const stack=new Int16Array(N),remaining=new Int16Array(N);
+ function viability(curr,depth){
+   mark++;let top=0;stack[top++]=curr;visitedMark[curr]=mark;let reaches=0;
+   while(top){const u=stack[--top];reaches++;for(const v of nbr[u])if(!seen[v]&&visitedMark[v]!==mark){visitedMark[v]=mark;stack[top++]=v}}
+   if(reaches!==N-depth+1)return false;
+   for(let v=0;v<N;v++)if(!seen[v]){
+     let degree=0;for(const u of nbr[v])if(!seen[u]||u===curr)degree++;
+     if(degree===0||(degree===1&&v!==end))return false;
+   }
+   return true;
+ }
+ function dfs(curr,depth,nextClue){
+   nodes++;if(nodes>220000||(nodes%2048===0&&performance.now()>cutoff)){return -1}
+   if(depth===N){if(curr===end&&nextClue===clues.length){for(let i=0;i<N;i++)if(route[i]!==target[i])return 1}return 0}
+   if(curr===end)return 0;
+   if(depth%3===0&&!viability(curr,depth))return 0;
+   const opts=nbr[curr];
+   for(let a=0;a<opts.length;a++){
+     const v=opts[a];if(seen[v])continue;
+     const clue=clueAt[v];if(clue>=0&&clue!==nextClue)continue;
+     seen[v]=1;route[depth]=v;
+     const status=dfs(v,depth+1,nextClue+(clue>=0?1:0));
+     seen[v]=0;if(status!==0)return status;
+   }
+   return 0;
+ }
+ return dfs(begin,1,1);
+}
+async function generateWalled(n,difficulty,onProgress){
+ const N=n*n,adj=makeAdj(n),target=randomHamiltonian(n,adj),clues=chooseClues(target,n,difficulty);
+ const pathEdges=new Set();for(let i=1;i<N;i++)pathEdges.add(key(target[i-1],target[i]));
+ const removable=[];for(let u=0;u<N;u++)for(const v of adj[u])if(v>u&&!pathEdges.has(key(u,v)))removable.push([u,v]);
+ shuffle(removable);
+ const walls=new Set(removable.map(([a,b])=>key(a,b)));
+ // Real Zip layouts use both long wall segments and isolated barriers.
+ // For walled boards, keep a natural mix of short/long wall sets.
+ const profiles={6:{easy:[3,7],medium:[6,11],hard:[9,14]},
+                 7:{easy:[5,10],medium:[9,15],hard:[13,20]},
+                 8:{easy:[8,15],medium:[13,21],hard:[18,28]}};
+ const [lower,upper]=profiles[n][difficulty];
+ const floor=lower+Math.floor(Math.random()*(upper-lower+1));
+ // Prefer preserving coherent horizontal/vertical segments of walls.
+ const candidatesSet=new Set(removable.map(([a,b])=>key(a,b)));
+ const wallAlignment=(a,b)=>{
+  const ra=Math.floor(a/n),rb=Math.floor(b/n),ca=a%n,cb=b%n;
+  if(ra===rb){let v=0;for(const dr of [-1,1]){const r=ra+dr;
+   if(r>=0&&r<n&&candidatesSet.has(key(r*n+Math.min(ca,cb),r*n+Math.min(ca,cb)+1)))v++;}return v;}
+  let v=0;for(const dc of [-1,1]){const c=ca+dc;
+   if(c>=0&&c<n&&candidatesSet.has(key(Math.min(ra,rb)*n+c,(Math.min(ra,rb)+1)*n+c)))v++;}return v;
+ };
+ // Singletons are tested for removal earlier; these are less visually satisfying.
+ removable.sort((x,y)=>wallAlignment(...x)-wallAlignment(...y)+(Math.random()-.5)*1.1);
+ for(let i=0;i<removable.length;i++){
+   if(walls.size<=floor)break;
+   const [a,b]=removable[i],edge=key(a,b);walls.delete(edge);
+   const res=findAlternative(n,adj,target,clues,walls);
+   if(res!==0)walls.add(edge);
+   if(i%9===0){onProgress(Math.round((i+1)/removable.length*100));await sleep()}
+ }
+ return {n,adj,target,clues,walls:[...walls],blocked:new Set(walls),clueAt:new Map(clues.map((v,i)=>[v,i+1]))};
+}
+function setMessage(s,kind=''){const el=$('feedback');el.textContent=(kind==='win'||kind==='warn')?s:'';el.className='feedback'+(kind?' '+kind:'')}
+function startTimer(){if(state.timerStart!==null)return;state.timerStart=performance.now()-state.elapsed;state.timerHandle=setInterval(updateTime,250)}
+function stopTimer(){if(state.timerStart!==null)state.elapsed=performance.now()-state.timerStart;state.timerStart=null;if(state.timerHandle!==null){clearInterval(state.timerHandle);state.timerHandle=null}updateTime()}
+function updateTime(){const ms=state.timerStart===null?state.elapsed:performance.now()-state.timerStart;const t=Math.floor(ms/1000);$('timer').textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
+function clearInvalid(){
+ if(invalidFlashTimer!==null){clearTimeout(invalidFlashTimer);invalidFlashTimer=null}
+ document.querySelectorAll('.cell.invalid,.clue-bubble.invalid').forEach(el=>el.classList.remove('invalid'));
+ $('boardAlert').classList.remove('visible');
+}
+function invalidNumber(i,message){
+ clearInvalid();
+ const p=state.puzzle;
+ const bubble=$('clueLayer').children[i]?.querySelector('.clue-bubble');
+ if(bubble){bubble.classList.add('invalid');$('cells').children[i]?.classList.add('invalid')}
+ $('boardAlert').textContent=`✕  ${message}`;
+ $('boardAlert').classList.add('visible');
+ setMessage(message,'warn');
+ invalidFlashTimer=setTimeout(()=>{clearInvalid()},1100);
+}
+function resetGame(){clearInvalid();stopTimer();state.elapsed=0;updateTime();state.path=[];state.won=false;state.showSolution=false;setMessage('');renderPath()}
+function renderBoard(){
+ const p=state.puzzle;if(!p)return;const n=p.n,N=n*n;
+ const cells=$('cells'),clues=$('clueLayer'),walls=$('wallLayer');
+ cells.style.gridTemplateColumns=`repeat(${n}, minmax(0,1fr))`;
+ cells.style.gridTemplateRows=`repeat(${n}, minmax(0,1fr))`;
+ clues.style.gridTemplateColumns=`repeat(${n}, minmax(0,1fr))`;
+ clues.style.gridTemplateRows=`repeat(${n}, minmax(0,1fr))`;
+ cells.innerHTML='';clues.innerHTML='';walls.innerHTML='';
+ for(let i=0;i<N;i++){
+  const div=document.createElement('div');div.className='cell';div.dataset.cell=i;
+  div.setAttribute('role','gridcell');div.setAttribute('aria-label',`Γραμμή ${Math.floor(i/n)+1}, στήλη ${i%n+1}`);
+  cells.appendChild(div);
+  const slot=document.createElement('div');slot.className='clue-space';slot.dataset.cell=i;
+  if(p.clueAt.has(i)){
+    const sp=document.createElement('span');sp.className='clue-bubble'+(p.clueAt.get(i)===1?' start-dot':'');
+    sp.textContent=p.clueAt.get(i);slot.appendChild(sp);
+  }
+  clues.appendChild(slot);
+ }
+ const width=n*100;
+ $('routeSvg').setAttribute('viewBox',`0 0 ${width} ${width}`);
+ // Place each wall directly on the shared boundary of its two cells.
+ for(const edge of p.walls){
+  const [a,b]=edge.split(',').map(Number);
+  const ra=Math.floor(a/n),ca=a%n,rb=Math.floor(b/n),cb=b%n;
+  const wall=document.createElement('div');wall.classList.add('wall');
+  if(ra===rb){
+    wall.classList.add('vertical');
+    wall.style.left=`${Math.max(ca,cb)*100/n}%`;
+    wall.style.top=`${ra*100/n}%`;
+    wall.style.height=`${100/n}%`;
+  }else{
+    wall.classList.add('horizontal');
+    wall.style.left=`${ca*100/n}%`;
+    wall.style.top=`${Math.max(ra,rb)*100/n}%`;
+    wall.style.width=`${100/n}%`;
+  }
+  walls.appendChild(wall);
+ }
+ renderPath();
+ 
+}
+function renderPath(){
+ const p=state.puzzle;if(!p)return;const n=p.n,route=state.showSolution?p.target:state.path;
+ const visited=new Set(state.path);for(const el of $('cells').children){const i=Number(el.dataset.cell);el.classList.toggle('visited',visited.has(i));const badge=$('clueLayer').children[i]?.querySelector('.clue-bubble');if(badge)badge.classList.toggle('current',!!state.path.length&&i===state.path[state.path.length-1])}
+ let poly='';if(route.length){
+  const xy=i=>[(i%n+.5)*100,(Math.floor(i/n)+.5)*100];
+  const points=route.map(i=>xy(i).join(',')).join(' ');
+  poly=`<polyline points="${points}" fill="none" stroke="${state.showSolution?'#9cabb7':(p.routeColor||'#0a85df')}" stroke-width="60" stroke-linecap="round" stroke-linejoin="round" opacity="${state.showSolution?.85:.87}"/>`;
+  // Place the arrowhead within the final segment, so it never hides a checkpoint number.
+  if(route.length>=2){
+   const [ax,ay]=xy(route[route.length-2]),[bx,by]=xy(route[route.length-1]);
+   const dx=(bx-ax)/100,dy=(by-ay)/100;
+   const tip=[ax+dx*80,ay+dy*80],base=[ax+dx*45,ay+dy*45];
+   const left=[base[0]-dy*17,base[1]+dx*17],right=[base[0]+dy*17,base[1]-dx*17];
+   poly+=`<polygon class="route-arrow" points="${left.join(',')} ${tip.join(',')} ${right.join(',')}"/>`;
+  }
+ }
+ $('routeSvg').innerHTML=poly;
+ $('progressLabel').textContent=`${state.path.length} / ${n*n}`;
+ $('bar').style.width=(100*state.path.length/(n*n))+'%';
+ $('undoBtn').disabled=state.path.length===0||state.won;
+ $('clearBtn').disabled=state.path.length===0&&!state.showSolution;
+}
+function showWin(assisted=false){
+ $('winHeading').textContent=assisted?'Ολοκληρώθηκε με βοήθεια!':'Ολοκληρώθηκε!';
+ $('winTime').textContent=$('timer').textContent;
+ $('winOverlay').classList.add('open');
+ $('winOverlay').setAttribute('aria-hidden','false');
+ document.body.classList.add('modal-open');
+ $('nextPuzzleBtn').focus({preventScroll:true});
+}
+function closeWin(){
+ $('winOverlay').classList.remove('open');
+ $('winOverlay').setAttribute('aria-hidden','true');
+ document.body.classList.remove('modal-open');
+ $('newBtn').focus({preventScroll:true});
+}
+function nextNumber(){const p=state.puzzle;let top=0;for(const i of state.path)if(p.clueAt.has(i))top=Math.max(top,p.clueAt.get(i));return top+1}
+function moveTo(i){
+ if(!state.puzzle||state.busy||state.won)return;
+ const p=state.puzzle,path=state.path;
+ if(!path.length){if(i!==p.clues[0]){if(p.clueAt.has(i))invalidNumber(i,'Ξεκίνα από τον αριθμό 1.');else setMessage('Πρώτα επίλεξε το τετράγωνο με τον αριθμό 1.','warn');return}state.showSolution=false;path.push(i);startTimer();renderPath();setMessage('Συνέχισε προς ένα γειτονικό τετράγωνο.');return}
+ const last=path[path.length-1];if(i===last)return;
+ const index=path.indexOf(i);
+ if(index>=0){path.splice(index+1);state.showSolution=false;renderPath();setMessage('Γύρισες πίσω. Μπορείς να δοκιμάσεις άλλη διαδρομή.');return}
+ if(!near(last,i,p.n))return;
+ if(p.blocked.has(key(last,i))){setMessage('Υπάρχει τοίχος ανάμεσα σε αυτά τα τετράγωνα.','warn');return}
+ const clue=p.clueAt.get(i);
+ if(clue&&clue!==nextNumber()){invalidNumber(i,`Λάθος αριθμός! Επόμενος είναι το ${nextNumber()}.`);return}
+ if(i===p.clues[p.clues.length-1]&&path.length!==p.n*p.n-1){invalidNumber(i,'Ο τελευταίος αριθμός πρέπει να είναι τελευταίος.');return}
+ path.push(i);state.showSolution=false;renderPath();
+ if(path.length===p.n*p.n){state.won=true;stopTimer();setMessage(`✓ Ολοκληρώθηκε σε ${$('timer').textContent}!`,'win');showWin()}
+ else if(clue){setMessage(`Βρήκες το ${clue}! Επόμενος αριθμός: ${clue+1}.`)}
+ else{setMessage(`Έχεις καλύψει ${path.length} από ${p.n*p.n} τετράγωνα.`)}
+}
+function undo(){if(!state.path.length||state.won)return;state.path.pop();state.showSolution=false;renderPath();setMessage('Αναιρέθηκε η τελευταία κίνηση.')}
+function hint(){if(state.busy||!state.puzzle||state.won)return;const goal=state.puzzle.target;let common=0;while(common<state.path.length&&state.path[common]===goal[common])common++;
+ state.path=state.path.slice(0,common);state.showSolution=false;
+ if(common<goal.length){if(!state.path.length)startTimer();state.path.push(goal[common]);if(state.path.length===goal.length){state.won=true;stopTimer();setMessage('Η διαδρομή συμπληρώθηκε με βοήθεια!','win');showWin(true)}else setMessage('Εμφανίστηκε το επόμενο σωστό βήμα.','')}
+ renderPath()}
+async function newPuzzle(){if(state.busy)return;if($('winOverlay').classList.contains('open'))closeWin();clearInvalid();state.busy=true;stopTimer();state.elapsed=0;state.path=[];state.won=false;state.showSolution=false;state.puzzle=null;
+ $('board').classList.add('loading');$('newBtn').disabled=true;$('newBtn').textContent='···';setMessage('');await sleep();
+ try{
+  // Approximate ratios observed in 500 archived LinkedIn Zip puzzles:
+  // 6x6 283/500, 7x7 164/500, 8x8 53/500.
+  const r=Math.random(),n=r<.566?6:(r<.894?7:8);
+  const dr=Math.random(),difficulty=dr<.31?'easy':(dr<.78?'medium':'hard');
+  state.puzzle=await generate(n,difficulty,()=>{});
+  const themes=[
+   {line:'#0a85df',fill:'#e6f4ff',cell:'#f5faff'},
+   {line:'#11a78b',fill:'#e2f7f0',cell:'#f5fcf9'},
+   {line:'#7156cc',fill:'#eee8ff',cell:'#faf8ff'},
+   {line:'#e58b37',fill:'#fff0d8',cell:'#fffbf5'},
+  ];
+  const theme=themes[Math.floor(Math.random()*themes.length)];
+  state.puzzle.routeColor=theme.line;
+  document.documentElement.style.setProperty('--fill',theme.fill);
+  document.documentElement.style.setProperty('--tile',theme.cell);
+  renderBoard();resetGame();
+ }
+ catch(err){console.error(err);setMessage('Προέκυψε σφάλμα στη δημιουργία. Δοκίμασε ξανά.','warn');}
+ finally{state.busy=false;$('board').classList.remove('loading');$('newBtn').disabled=false;$('newBtn').textContent='Νέα πίστα'}
+}
+$('newBtn').addEventListener('click',newPuzzle);
+$('nextPuzzleBtn').addEventListener('click',newPuzzle);
+$('closeWinBtn').addEventListener('click',closeWin);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('winOverlay').classList.contains('open'))closeWin()});
+$('undoBtn').addEventListener('click',undo);
+$('clearBtn').addEventListener('click',resetGame);
+$('hintBtn').addEventListener('click',hint);
+
+
+$('board').addEventListener('pointerdown',e=>{const el=e.target.closest('.cell');if(!el)return;state.dragging=true;moveTo(Number(el.dataset.cell));$('board').focus({preventScroll:true});e.preventDefault()});
+window.addEventListener('pointermove',e=>{if(!state.dragging)return;const el=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell');if(el&&$('board').contains(el))moveTo(Number(el.dataset.cell))});
+window.addEventListener('pointerup',()=>{state.dragging=false});window.addEventListener('pointercancel',()=>{state.dragging=false});
+$('board').addEventListener('keydown',e=>{if(!state.puzzle)return;const dirs={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};if(e.key==='Backspace'){undo();e.preventDefault();return}if(!(e.key in dirs))return;e.preventDefault();if(!state.path.length){moveTo(state.puzzle.clues[0]);return}const last=state.path[state.path.length-1],r=Math.floor(last/state.puzzle.n),c=last%state.puzzle.n,[dr,dc]=dirs[e.key];if(r+dr<0||r+dr>=state.puzzle.n||c+dc<0||c+dc>=state.puzzle.n)return;moveTo((r+dr)*state.puzzle.n+(c+dc))});
+// Zip Lab v4 - puzzle profiles based on documented Zip board ranges.
+const recentPuzzles=[];
+const randomBetween=(min,max)=>min+Math.floor(Math.random()*(max-min+1));
+
+function chooseClues(path,n,difficulty){
+ const ranges={6:{easy:[10,16],medium:[7,12],hard:[4,8]},7:{easy:[12,18],medium:[8,13],hard:[5,10]},8:{easy:[14,20],medium:[9,16],hard:[6,11]}};
+ const [low,high]=ranges[n][difficulty],count=randomBetween(low,high),N=path.length;
+ const indices=new Set([0,N-1]);
+ const bend=new Set();
+ for(let i=1;i<N-1;i++){
+   const a=path[i-1],b=path[i],c=path[i+1];
+   if((Math.floor(a/n)===Math.floor(b/n))!==(Math.floor(c/n)===Math.floor(b/n)))bend.add(i);
+ }
+ while(indices.size<count){
+   const opts=[];
+   for(let i=1;i<N-1;i++)if(!indices.has(i)){
+     // Turns are slightly more likely to get a number, as in many real layouts.
+     opts.push([i,(bend.has(i)?2.4:1)*(.5+Math.random())]);
+   }
+   const total=opts.reduce((sum,x)=>sum+x[1],0);let v=Math.random()*total;
+   for(const [i,w] of opts){v-=w;if(v<=0){indices.add(i);break}}
+ }
+ return [...indices].sort((a,b)=>a-b).map(i=>path[i]);
+}
+
+function lowTurnPath(n,adj){
+ const N=n*n;let path=[];
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)path.push(r*n+(r%2?n-1-c:c));
+ const where=new Int16Array(N),pivots=randomBetween(2,n===8?9:14);
+ for(let step=0;step<pivots;step++){
+   for(let i=0;i<N;i++)where[path[i]]=i;
+   const front=Math.random()<.5;
+   const endpoint=front?path[0]:path[N-1],skip=front?path[1]:path[N-2];
+   const neighbors=adj[endpoint].filter(x=>x!==skip);
+   if(!neighbors.length)continue;
+   const j=where[neighbors[Math.floor(Math.random()*neighbors.length)]];
+   if(front&&j>1)path=path.slice(0,j).reverse().concat(path.slice(j));
+   else if(!front&&j<N-2)path=path.slice(0,j+1).concat(path.slice(j+1).reverse());
+ }
+ const mirror=Math.random()<.5,rotations=randomBetween(0,3);
+ path=path.map(i=>{
+   let r=Math.floor(i/n),c=i%n;
+   if(mirror)c=n-1-c;
+   for(let t=0;t<rotations;t++){const nr=c,nc=n-1-r;r=nr;c=nc;}
+   return r*n+c;
+ });
+ if(Math.random()<.5)path.reverse();
+ return path;
+}
+
+function bendLocations(path,n){
+ const positions=new Set([0,path.length-1]);
+ for(let i=1;i<path.length-1;i++){
+   const a=path[i-1],b=path[i],c=path[i+1];
+   if((Math.floor(a/n)===Math.floor(b/n))!==(Math.floor(c/n)===Math.floor(b/n)))positions.add(i);
+ }
+ return positions;
+}
+
+async function generateOpen(n,adj,onProgress){
+ const maxClues={6:19,7:22,8:24}[n], minimumClues={6:randomBetween(8,14),7:randomBetween(9,15),8:randomBetween(12,20)}[n];
+ for(let trial=0;trial<12;trial++){
+   const target=lowTurnPath(n,adj),indices=bendLocations(target,n);
+   if(indices.size>maxClues)continue;
+   while(indices.size<=maxClues){
+     const sorted=[...indices].sort((a,b)=>a-b);
+     const clues=sorted.map(i=>target[i]);
+     if(findAlternative(n,adj,target,clues,new Set())===0){
+       // Optional random removal gives some boards fewer numbers.
+       for(const j of shuffle(sorted.slice(1,-1))){
+         if(indices.size<=minimumClues)break;
+         indices.delete(j);
+         const fewer=[...indices].sort((a,b)=>a-b).map(i=>target[i]);
+         if(findAlternative(n,adj,target,fewer,new Set())!==0)indices.add(j);
+       }
+       const finalClues=[...indices].sort((a,b)=>a-b).map(i=>target[i]);
+       return {n,adj,target,clues:finalClues,walls:[],blocked:new Set(),clueAt:new Map(finalClues.map((v,i)=>[v,i+1])),style:'Χωρίς εμπόδια'};
+     }
+     if(indices.size>=maxClues)break;
+     // Add a checkpoint in the longest uncertain interval.
+     let best=-1,score=-1;
+     for(let k=0;k<sorted.length-1;k++){
+       const a=sorted[k],b=sorted[k+1];
+       if(b-a<2)continue;
+       const len=b-a;const proposed=a+Math.max(1,Math.min(len-1,Math.round(len*(.35+Math.random()*.3))));
+       const weight=len*(.7+Math.random()*.6);
+       if(weight>score&&!indices.has(proposed)){best=proposed;score=weight}
+     }
+     if(best===-1){const free=[];for(let i=1;i<n*n-1;i++)if(!indices.has(i))free.push(i);best=free[Math.floor(Math.random()*free.length)];}
+     if(best===undefined)break;indices.add(best);
+   }
+   if(trial%2===0){onProgress(Math.round((trial+1)/12*60));await sleep();}
+ }
+ return null;
+}
+
+async function generate(n,difficulty,onProgress){
+ const adj=makeAdj(n),openChance=.43;
+ let puzzle=null;
+ for(let attempt=0;attempt<4;attempt++){
+   if(Math.random()<openChance){puzzle=await generateOpen(n,adj,onProgress);}
+   if(!puzzle){puzzle=await generateWalled(n,difficulty,onProgress);puzzle.style='Με εμπόδια';}
+   const signature=[n,...puzzle.clues,'/',...puzzle.walls.slice().sort()].join(',');
+   if(!recentPuzzles.includes(signature)||attempt===3){
+     recentPuzzles.push(signature);if(recentPuzzles.length>12)recentPuzzles.shift();break;
+   }
+   puzzle=null;
+ }
+ puzzle.id=randomBetween(100000,999999);
+ return puzzle;
+}
+
+newPuzzle();
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}</script></body></html>
