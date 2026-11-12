@@ -1,0 +1,19 @@
+{
+  "name": "Zip — Puzzle",
+  "short_name": "Zip",
+  "description": "A daily-style logic path puzzle",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6fa",
+  "theme_color": "#f4f6fa",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
